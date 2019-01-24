@@ -23,83 +23,96 @@ router.get('/test',(req, res) =>
 
 
 
-/// @route GET api/users/register
-/// @desc Test posts routes
+/// @route POST api/users/test
+/// @desc Register users
 /// @access Public
 
-router.post('/register', (req, res) =>  // route for register
-  User.findOne({email: req.body.email})  // Find user that matches email
+router.post('/register', (req, res) => {
+  User.findOne({email: req.body.email})
   .then(user => {
-    if(user){  //  If a user matches the database
-      return res.status(400).json({email: 'Email already exists'}) //send a 404 status with response of email already exits
-    } else {
-      const avatar = gravatar.url(req.body.email, {  // Else: Create avatar for user using gravatar open source
-        s: '200', // Size of avatar
-        r: 'pg',  // rating
-        d: 'mm'  // default
+    if(user){
+      return res.status(400).json({email: 'Email already exists'})
+    }else {
+
+      const avatar = gravatar.url(req.body.email, {
+        s: '200',
+        r: 'pg',
+        d: 'mm'
       });
-      const newUser = new User({  // Else: Also create new User
+
+      const newUser = new User ({
         name: req.body.name,
         email: req.body.email,
         avatar,
         password: req.body.password
-      });
-      bcrypt.genSalt(10, (err, salt) => {   // Hashing out Password
+      })
+
+      bcrypt.genSalt(10,(err, salt) => {    ///  Hashing OUT password by using Bcrypt
         bcrypt.hash(newUser.password, salt, (err, hash) => {
-          if(err => console.log(err));
-          newUser.password = hash;
+          if(err){
+            console.log(err)
+          }
+          newUser.password = hash;   //Save new User with the hash
           newUser.save()
-          .then(user => res.json(user))
+          .then(user => console.log(user))
           .catch(err => console.log(err))
         })
       })
     }
   })
-)
+})
 
 
-router.post('/login', (req, res) =>{
+
+
+
+
+/// @route POST api/users/login
+/// @desc Logging In Users
+/// @access Public
+
+router.post('/login', (req,res) => {
   const email = req.body.email;
   const password = req.body.password;
 
   User.findOne({email})
   .then(user => {
-    if(!user){
-      // Check for user
-      return res.status(400).json({email: 'User email is incorrect'})
+    if(!user) {
+      res.status(400).json({email: 'Email doesn/t match our records'})
     }
 
     bcrypt.compare(password, user.password)
     .then(isMatch => {
       if(isMatch){
-        // User Matched
-        const payload = {id: user.id, name: user.name, avatar: user.avatar };
 
-        // Sign jsonwebtoken
+        const payload = ({id: user.id, name: user.name, avatar: user.avatar})
+
         jwt.sign(
           payload,
-           keys.secretOrKey,
-           {expiresIn: 3600},
+          keys.secretOrKey,
+          {expiresIn: '2h'},
           (err, token) => {
             res.json({
               success: true,
               token: 'Bearer ' + token
             })
           })
-      }else{
-        return res.status(400).json({password: 'User password is incorrect'})
+      }else {
+        res.status(400).json({password: 'Password is invaild'})
       }
     })
   })
 })
 
+/// @route Post api/users/current     Once users is verified, path will be public to user
+/// @desc Return current user
+
+/// @access {{{{{PRIVATE}}}}}
 
 router.get('/current', passport.authenticate('jwt', { session: false}), (req, res) => {
-  res.json({
-    id: req.user.id,
-    name: req.user.name,
-    email: req.user.email
-  })
+  res.json(
+    req.user
+  )
 })
 
 
